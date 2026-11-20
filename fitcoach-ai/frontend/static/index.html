@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitCoach AI - 健身與熱量管理教練</title>
+<!-- Optional: used only to draw A2UI Icon components. If it can't load (offline/
+     corp network), icons fall back to showing their name as text. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<style>
+  :root {
+    --accent: #0d9488;
+    --accent-hover: #0f766e;
+    --accent-light: #ccfbf1;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --user-bubble: #0d9488;
+    --agent-bubble: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #0d9488, #115e59);
+    color: #fff;
+    padding: 0.9rem 1.4rem;
+    font-weight: 700;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+    z-index: 10;
+  }
+  .header-brand { display: flex; align-items: center; gap: 0.6rem; }
+  .header-badge { font-size: 0.75rem; background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 9999px; font-weight: 500; }
+  
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 1rem;
+    max-width: 820px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  
+  /* Welcome card */
+  .welcome-card {
+    background: linear-gradient(to right bottom, #f0fdfa, #f8fafc);
+    border: 1px solid var(--accent-light);
+    border-radius: 16px;
+    padding: 1.2rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 4px rgba(13,148,136,0.05);
+  }
+  .welcome-title { font-size: 1.1rem; font-weight: 700; color: #0f766e; margin-bottom: 0.3rem; }
+  .welcome-desc { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45; }
+
+  /* Message row and avatars */
+  .msg-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    animation: fadeIn 0.2s ease-in-out;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .msg-row.user { flex-direction: row-reverse; }
+  
+  .avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  }
+  .msg-row.agent .avatar { background: #e6fffa; border: 1px solid #99f6e4; }
+  .msg-row.user .avatar { background: #f1f5f9; border: 1px solid #cbd5e1; }
+
+  .msg-content-wrap {
+    display: flex;
+    flex-direction: column;
+    max-width: 82%;
+  }
+  .msg-row.user .msg-content-wrap { align-items: flex-end; }
+  .msg-meta { font-size: 0.72rem; color: #94a3b8; margin-top: 0.3rem; padding: 0 0.2rem; }
+
+  .bubble {
+    padding: 0.8rem 1.05rem;
+    border-radius: 16px;
+    background: var(--agent-bubble);
+    border: 1px solid var(--border);
+    text-align: left;
+    white-space: pre-wrap;
+    line-height: 1.55;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .msg-row.user .bubble {
+    background: var(--user-bubble);
+    color: #fff;
+    border: none;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 6px rgba(13,148,136,0.25);
+  }
+  .msg-row.agent .bubble {
+    border-bottom-left-radius: 4px;
+  }
+  /* When reply is an A2UI card, drop standard bubble borders */
+  .bubble.rich { background: transparent; border: none; padding: 0; max-width: 100%; white-space: normal; box-shadow: none; }
+
+  /* Bottom Controls & Prompt Row */
+  .footer-panel {
+    background: #ffffff;
+    border-top: 1px solid var(--border);
+    max-width: 820px;
+    width: 100%;
+    margin: 0 auto;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+  }
+  .prompt-row {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .prompt-btn {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+    color: #334155;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .prompt-btn:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: #0f766e;
+    transform: translateY(-1px);
+  }
+  form {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem 1rem;
+  }
+  input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 0.96rem;
+    outline: none;
+    background: #f8fafc;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(13,148,136,0.12);
+  }
+  button[type="submit"] {
+    padding: 0.75rem 1.4rem;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: background 0.2s, transform 0.1s;
+  }
+  button[type="submit"]:hover { background: var(--accent-hover); }
+  button[type="submit"]:active { transform: scale(0.98); }
+
+  /* Quick Stats Bar */
+  .stats-bar-wrapper {
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    z-index: 5;
+  }
+  .stats-bar {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 0.65rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    overflow-x: auto;
+  }
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.4rem 0.75rem;
+    flex: 1;
+    min-width: 140px;
+  }
+  .stat-icon {
+    font-size: 1.2rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .stat-info { display: flex; flex-direction: column; }
+  .stat-label { font-size: 0.72rem; color: var(--text-secondary); font-weight: 500; }
+  .stat-val { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+  .stat-val span { font-size: 0.72rem; font-weight: normal; color: #94a3b8; }
+  .stat-val.highlight { color: #0f766e; }
+  .stat-progress {
+    width: 100%;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    margin-top: 3px;
+    overflow: hidden;
+  }
+  .stat-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+
+  /* --- A2UI component styles (Card, Column, Row, Text, Divider, List, Image, Icon) --- */
+  .a2card {
+    border: 1px solid #ccfbf1;
+    border-radius: 14px;
+    padding: 1.15rem;
+    background: #ffffff;
+    box-shadow: 0 3px 8px rgba(13,148,136,0.06);
+    max-width: 100%;
+  }
+  .a2card + .a2card, .a2col > .a2card { margin-top: 0.6rem; }
+  .a2col { display: flex; flex-direction: column; gap: 0.45rem; }
+  .a2row { display: flex; flex-direction: row; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  .a2row.between { justify-content: space-between; }
+  .a2text { margin: 0; line-height: 1.45; }
+  .a2text.a2-h1 { font-size: 1.45rem; font-weight: 700; color: #0f766e; }
+  .a2text.a2-h2 { font-size: 1.25rem; font-weight: 700; color: #115e59; }
+  .a2text.a2-h3 { font-size: 1.1rem; font-weight: 600; color: #0d9488; }
+  .a2text.a2-h4 { font-size: 1rem; font-weight: 600; color: #334155; }
+  .a2text.a2-caption { font-size: 0.85rem; color: #64748b; }
+  .a2divider { border: none; border-top: 1px solid #e2e8f0; margin: 0.5rem 0; width: 100%; }
+  .a2img { max-width: 100%; border-radius: 10px; display: block; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 1.25rem;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-brand">
+    <span class="material-symbols-outlined" style="font-size:1.6rem; color:#fff;">fitness_center</span>
+    <span>FitCoach AI</span>
+  </div>
+  <span class="header-badge"><span class="material-symbols-outlined" style="font-size:0.95rem; vertical-align:text-bottom; margin-right:2px;">check_circle</span>AI 健身營養教練 · 已連線</span>
+</header>
+
+<div class="stats-bar-wrapper">
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-icon"><span class="material-symbols-outlined" style="color:#ea580c;">local_fire_department</span></div>
+      <div class="stat-info" style="flex:1;">
+        <div class="stat-label">今日運動消耗</div>
+        <div class="stat-val"><span id="stat-burn">320</span> kcal</div>
+        <div class="stat-progress"><div class="stat-progress-bar" id="stat-burn-bar" style="width:64%;"></div></div>
+      </div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-icon"><span class="material-symbols-outlined" style="color:#16a34a;">restaurant</span></div>
+      <div class="stat-info" style="flex:1;">
+        <div class="stat-label">飲食攝取 / 目標</div>
+        <div class="stat-val highlight"><span id="stat-cal">1,450</span> <span>/ 2,100 kcal</span></div>
+        <div class="stat-progress"><div class="stat-progress-bar" id="stat-cal-bar" style="width:69%;"></div></div>
+      </div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-icon"><span class="material-symbols-outlined" style="color:#0f766e;">nutrition</span></div>
+      <div class="stat-info" style="flex:1;">
+        <div class="stat-label">蛋白質達標</div>
+        <div class="stat-val"><span id="stat-protein">105g</span> <span>/ 140g</span></div>
+        <div class="stat-progress"><div class="stat-progress-bar" id="stat-protein-bar" style="width:75%; background:#0f766e;"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="log">
+  <div class="welcome-card">
+    <div class="welcome-title">歡迎使用 FitCoach AI 專屬個人教練！</div>
+    <div class="welcome-desc">我可以為您分析飲食熱量、客製高蛋白減脂菜單、追蹤訓練課表，並視覺化呈現您的每日健康進度。請隨時向我提問或點選下方快捷建議！</div>
+  </div>
+</div>
+
+<div class="footer-panel">
+  <div class="prompt-row">
+    <button type="button" class="prompt-btn" onclick="sendPrompt('推薦一份高蛋白低脂的健康減脂晚餐食譜')"><span class="material-symbols-outlined" style="font-size:1.1rem; color:#16a34a;">skillet</span> 推薦高蛋白減脂晚餐</button>
+    <button type="button" class="prompt-btn" onclick="sendPrompt('我今天深蹲做了 4 組 80kg 各 10 下，請幫我記錄運動並估算熱量消耗')"><span class="material-symbols-outlined" style="font-size:1.1rem; color:#0d9488;">exercise</span> 記錄深蹲訓練與消耗</button>
+    <button type="button" class="prompt-btn" onclick="sendPrompt('請生成一段壺鈴深蹲動作示範教學的動態短影片')"><span class="material-symbols-outlined" style="font-size:1.1rem; color:#2563eb;">videocam</span> 生成動作示範影片</button>
+    <button type="button" class="prompt-btn" onclick="sendPrompt('幫我產生一張健身里程碑激勵獎章，慶祝連續堅持一週！')"><span class="material-symbols-outlined" style="font-size:1.1rem; color:#eab308;">military_tech</span> 產生激勵獎章</button>
+  </div>
+  <form id="form">
+    <input id="input" placeholder="詢問健身課表、飲食熱量分析、動作影片或記錄…" autocomplete="off" autofocus>
+    <button type="submit"><span class="material-symbols-outlined" style="font-size:1.2rem; color:#fff;">send</span>送出</button>
+  </form>
+</div>
+
+<script>
+const log = document.getElementById("log");
+const form = document.getElementById("form");
+const input = document.getElementById("input");
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+function bubble(who) {
+  const row = el("div", "msg-row " + who);
+  const avatar = el("div", "avatar");
+  const iconSpan = el("span", "material-symbols-outlined", who === "user" ? "person" : "fitness_center");
+  if (who === "agent") iconSpan.style.color = "var(--accent)";
+  else iconSpan.style.color = "#475569";
+  avatar.appendChild(iconSpan);
+
+  const wrap = el("div", "msg-content-wrap");
+  const b = el("div", "bubble");
+  
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const meta = el("div", "msg-meta", (who === "user" ? "您 · " : "FitCoach · ") + timeStr);
+
+  wrap.appendChild(b);
+  wrap.appendChild(meta);
+  row.appendChild(avatar);
+  row.appendChild(wrap);
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+  return b;
+}
+
+/* ----------------------------------------------------------------------------
+ * A2UI mini-renderer (v0.8 Basic Catalog subset).
+ * Renders Card / Column / Row / Text / Divider / List / Image / Icon.
+ * Anything else falls back to plain text (see renderReply). All text goes in via
+ * textContent and image URLs are validated, so agent output can't inject HTML.
+ * -------------------------------------------------------------------------- */
+
+// A "bound value" is usually {literalString: "..."}; we only support literals.
+function boundStr(v) {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v.literalString === "string") return v.literalString;
+  return "";
+}
+
+// child ids of a component's props: single `child` and/or `children.explicitList`.
+function childIds(props) {
+  const ids = [];
+  if (props && typeof props.child === "string") ids.push(props.child);
+  const ch = props && props.children;
+  if (ch && Array.isArray(ch.explicitList)) for (const c of ch.explicitList) if (typeof c === "string") ids.push(c);
+  return ids;
+}
+
+// A2UI icon names are camelCase (locationOn); Material Symbols wants snake_case.
+function iconName(n) { return String(n || "").replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/\s+/g, "_").toLowerCase(); }
+
+function buildNode(id, comps, seen) {
+  if (!id || seen.has(id)) return null;   // missing / cycle guard
+  seen.add(id);
+  const spec = comps[id];
+  if (!spec || typeof spec !== "object") return null;
+  const type = Object.keys(spec)[0];
+  const props = spec[type] || {};
+  const kids = () => childIds(props).map(cid => buildNode(cid, comps, seen)).filter(Boolean);
+
+  switch (type) {
+    case "Card": {
+      const d = el("div", "a2card"); kids().forEach(n => d.appendChild(n)); return d;
+    }
+    case "Column":
+    case "List": {
+      const horizontal = type === "List" && props.direction === "horizontal";
+      const d = el("div", horizontal ? "a2row" : "a2col"); kids().forEach(n => d.appendChild(n)); return d;
+    }
+    case "Row": {
+      const d = el("div", "a2row" + (props.distribution === "spaceBetween" ? " between" : ""));
+      kids().forEach(n => d.appendChild(n)); return d;
+    }
+    case "Text": {
+      const t = el("div", "a2text");
+      const hint = String(props.usageHint || "body").toLowerCase();
+      if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(hint)) t.classList.add("a2-" + hint);
+      else if (hint === "caption") t.classList.add("a2-caption");
+      t.textContent = boundStr(props.text);
+      return t;
+    }
+    case "Divider":
+      return el("hr", "a2divider");
+    case "Image": {
+      const src = boundStr(props.url || props.src);
+      if (!/^https?:\/\//i.test(src)) return null;   // only allow safe URLs
+      const img = el("img", "a2img"); img.src = src; img.alt = boundStr(props.alt) || ""; return img;
+    }
+    case "Video": {
+      const src = boundStr(props.url || props.src);
+      if (!/^https?:\/\//i.test(src)) return null;
+      const v = document.createElement("video");
+      v.src = src;
+      v.controls = true;
+      v.autoplay = false;
+      v.style.maxWidth = "100%";
+      v.style.borderRadius = "12px";
+      v.style.marginTop = "0.5rem";
+      v.style.marginBottom = "0.5rem";
+      v.style.boxShadow = "0 3px 10px rgba(0,0,0,0.12)";
+      return v;
+    }
+    case "Icon": {
+      const s = el("span", "material-symbols-outlined"); s.textContent = iconName(boundStr(props.name) || props.name); return s;
+    }
+    default:
+      return null;   // unknown component -> skipped (text fallback covers content)
+  }
+}
+
+// Render one or more A2UI messages (beginRendering + surfaceUpdate) into `container`.
+// Returns true if anything was drawn.
+function renderSurface(messages, container) {
+  const comps = {};
+  const roots = [];
+  for (const m of messages) {
+    if (m.beginRendering && typeof m.beginRendering.root === "string") roots.push(m.beginRendering.root);
+    const su = m.surfaceUpdate;
+    if (su && Array.isArray(su.components)) for (const c of su.components) if (c && c.id && c.component) comps[c.id] = c.component;
+  }
+  let rootIds = roots.filter(r => comps[r]);
+  if (rootIds.length === 0) {   // no valid root given -> infer un-referenced components
+    const referenced = new Set();
+    for (const id in comps) { const spec = comps[id]; childIds(spec[Object.keys(spec)[0]] || {}).forEach(c => referenced.add(c)); }
+    rootIds = Object.keys(comps).filter(id => !referenced.has(id));
+  }
+  let drew = false;
+  for (const rid of rootIds) { const node = buildNode(rid, comps, new Set()); if (node) { container.appendChild(node); drew = true; } }
+  return drew;
+}
+
+// Fallback: pull every Text value out of the messages as plain text.
+function flattenText(messages) {
+  const out = [];
+  for (const m of messages) {
+    const su = m.surfaceUpdate;
+    if (su && Array.isArray(su.components)) for (const c of su.components) if (c && c.component && c.component.Text) out.push(boundStr(c.component.Text.text));
+  }
+  return out.join("\n").trim();
+}
+
+function cleanTextContent(str) {
+  if (!str) return "";
+  // 1. Remove ```json ... ``` code blocks
+  let s = str.replace(/```(?:json)?\s*[\{\[][\s\S]*?[\}\]]\s*```/gi, "");
+  // 2. Remove <a2ui-json>...</a2ui-json> or <a2a_datapart_json>...</a2a_datapart_json> tags
+  s = s.replace(/<(?:\/?a2ui-json|\/?a2a_datapart_json)>[\s\S]*?<\/(?:a2ui-json|a2a_datapart_json)>/gi, "");
+  s = s.replace(/<\/?(?:a2ui-json|a2a_datapart_json)>/gi, "");
+  // 3. Remove raw top-level JSON objects e.g. {"status": "success", ...} or {"beginRendering": ...}
+  s = s.replace(/\{\s*"status"\s*:\s*"success"[\s\S]*?\}/gi, "");
+  s = s.replace(/\{\s*"(?:beginRendering|surfaceUpdate|components)"[\s\S]*?\}/gi, "");
+  return s.trim();
+}
+
+function renderReply(b, parts) {
+  b.textContent = "";   // clear the "…" placeholder
+  const texts = parts.filter(p => p && (p.kind === "text" || (!p.kind && p.text))).map(p => p.text || "");
+  const a2ui = parts.filter(p => p && p.kind === "a2ui" && p.data).map(p => p.data);
+
+  const rawTextStr = texts.join("\n").trim();
+  const cleanedText = cleanTextContent(rawTextStr);
+
+  // Check if there is an mp4 video URL in either raw or cleaned text
+  const videoMatch = rawTextStr.match(/https:\/\/storage\.googleapis\.com\/[^\s\)\"\'\<\>]+?\.mp4/i);
+
+  if (cleanedText || videoMatch) {
+    const textWrap = el("div");
+    
+    if (cleanedText) {
+      const p = el("div", null, cleanedText);
+      p.style.whiteSpace = "pre-wrap";
+      textWrap.appendChild(p);
+    }
+
+    if (videoMatch) {
+      const videoUrl = videoMatch[0];
+      const videoEl = document.createElement("video");
+      videoEl.src = videoUrl;
+      videoEl.controls = true;
+      videoEl.autoplay = false;
+      videoEl.style.maxWidth = "100%";
+      videoEl.style.borderRadius = "12px";
+      videoEl.style.marginTop = "0.75rem";
+      videoEl.style.boxShadow = "0 3px 10px rgba(0,0,0,0.12)";
+      textWrap.appendChild(videoEl);
+    }
+    b.appendChild(textWrap);
+  }
+
+  if (a2ui.length) {
+    b.classList.add("rich");
+    if (!renderSurface(a2ui, b)) {
+      const fallback = flattenText(a2ui);
+      if (fallback) b.appendChild(el("div", null, fallback));
+    }
+  }
+  if (!b.childNodes.length) b.textContent = "(no response)";
+  log.scrollTop = log.scrollHeight;
+}
+
+async function handleSend(text) {
+  if (!text) return;
+  bubble("user").textContent = text;
+  input.value = "";
+  const b = bubble("agent"); b.textContent = "…";
+  try {
+    const res = await fetch("/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text }) });
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); }
+    catch { throw new Error(`Server returned non-JSON (HTTP ${res.status}). ${raw.slice(0, 300)}`); }
+    renderReply(b, data.parts || []);
+  } catch (e) {
+    b.textContent = "Error: " + e.message;
+  }
+}
+
+function sendPrompt(text) {
+  input.value = text;
+  handleSend(text);
+}
+
+// The proxy returns { parts: [{kind:"text",text} | {kind:"a2ui",data}] }.
+form.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  handleSend(input.value.trim());
+});
+</script>
+</body>
+</html>
